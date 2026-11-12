@@ -32,8 +32,8 @@ import { indexarProdutos, buscarProdutos } from './indice-produtos.mjs';
 
   window.KALLINE_AUTH_USER_ID = 'ender_direcao';
   window.KALLINE_STORAGE_SCOPE = 'masculino_inv2027';
-  NEON_PAGE_KEY = 'kalline_masculino_inverno_2027_v1';
-  const VERSIONS_STORAGE_KEY = 'kalline_masculino_versions_v1';
+  NEON_PAGE_KEY = 'kalline_masculino_inverno_2027_v2';
+  const VERSIONS_STORAGE_KEY = 'kalline_masculino_versions_v2';
 
   // Provedor de fotos e sessão local
   window.NeonPilot = {
@@ -217,7 +217,7 @@ import { indexarProdutos, buscarProdutos } from './indice-produtos.mjs';
 
     const produtos = (LOOKS_DATA || []).map(l => ({
       referencia: l.ref1,
-      nome: l.name1 + (l.cor1 ? ` (${l.cor1})` : ''),
+      nome: l.name1,
       name1: l.name1,
       cor1: l.cor1,
       lookNum: l.seq,
@@ -287,6 +287,17 @@ import { indexarProdutos, buscarProdutos } from './indice-produtos.mjs';
   };
 
   // Inicialização do Editor
+  function sanitizePieceNames(planList) {
+    if (!Array.isArray(planList)) return;
+    planList.forEach(p => {
+      (p.pieces || []).forEach(piece => {
+        if (piece.name) {
+          piece.name = piece.name.replace(/\s*\([^)]*\)\s*$/, '').trim();
+        }
+      });
+    });
+  }
+
   function initMasculinoEditor() {
     const loginGate = document.getElementById('loginGate');
     if (loginGate) loginGate.style.display = 'none';
@@ -298,7 +309,14 @@ import { indexarProdutos, buscarProdutos } from './indice-produtos.mjs';
       if (label) label.textContent = 'Ender · Direção Criativa';
     }
 
+    // Garante que o brasão oficial atualizado esteja ativo no HTML
+    if (window.KALLINE_BRASAO_DATA) {
+      KALLINE_BRASAO_DATA = window.KALLINE_BRASAO_DATA;
+      KALLINE_BRASAO_HTML = `<img class="kalline-brasao-img" src="${KALLINE_BRASAO_DATA}" alt="Kalline" />`;
+    }
+
     loadState();
+    sanitizePieceNames(window.pages || []);
     setZoom(0.75);
     renderAllPages();
     window.renderSidebarLooks();
