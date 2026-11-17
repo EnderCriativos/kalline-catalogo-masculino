@@ -9,8 +9,8 @@
  * Indexacao/busca: indice-produtos.mjs. Navegacao bidirecional pelas paginas.
  */
 
-import './neon-auth.js?v=v03c';
-import { indexarProdutos, buscarProdutos } from './indice-produtos.mjs';
+import './neon-auth.js?v=v03e';
+import { indexarProdutos, buscarProdutos } from './indice-produtos.mjs?v=v03e';
 
 (function() {
   'use strict';
@@ -210,28 +210,65 @@ import { indexarProdutos, buscarProdutos } from './indice-produtos.mjs';
     return list.filter(v => !v.readOnly && !v.oficial).sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)))[0] || null;
   }
   window.KallineSession.latestClientVersionMeta = latestClientVersionMeta;
+  // Abertura: a BASE OFICIAL mais nova manda. Versao de cliente so e aberta sozinha se descende dessa base;
+  // rascunho local feito sobre base antiga (ou de origem desconhecida) e guardado e substituido pela base atual.
+  const ORIGEM_KEY = () => 'kalline_masc_origem_' + window.KALLINE_STORAGE_SCOPE;
+  const lerOrigem = () => { try { return JSON.parse(localStorage.getItem(ORIGEM_KEY()) || 'null'); } catch (e) { return null; } };
+  const gravarOrigem = o => { try { localStorage.setItem(ORIGEM_KEY(), JSON.stringify(o)); } catch (e) {} };
+  function lineage(list) {
+    const byId = new Map(list.map(v => [v.id, v]));
+    const rootOf = id => { let cur = id, n = 0; while (byId.get(cur)?.parentId && n++ < 500) cur = byId.get(cur).parentId; return cur; };
+    const desc = (a, b) => String(b.createdAt).localeCompare(String(a.createdAt));
+    const bases = list.filter(v => v.readOnly || v.oficial).sort(desc);
+    const clientes = list.filter(v => !v.readOnly && !v.oficial).sort(desc);
+    return { rootOf, base: bases[0] || null, clientes, byId };
+  }
+  window.KallineSession.lineage = lineage;
   async function openLatestClientVersion() {
     let panel = null;
     for (let i = 0; i < 100 && !panel; i++) {
       try { panel = sharedVersionsPanel; } catch (e) {}
       if (!panel) await new Promise(r => setTimeout(r, 100));
     }
+    const diag = window.__kallineStartup = { autosaveDescartado: false };
     try {
       if (!panel) return;
       const cl = panel.client;
-      const latest = await latestClientVersionMeta();
-      window.__kallineStartup = { latest: latest ? latest.id : null };
-      if (!latest || cl.parentId === latest.id) return;
-      const base = stable(KallineReview.normalize(structuredClone(INITIAL_PAGES)));
-      const clean = (cl.baseline === null && stable(window.pages) === base) || (cl.baseline !== null && !cl.isDirty());
-      if (!clean) { showToast('Há alterações não salvas neste navegador. Clique em Salvar para guardá-las.'); return; }
-      const snap = await api('/api/catalog/versions/' + encodeURIComponent(latest.id));
+      const list = (await api('/api/catalog/versions')).versions || [];
+      const L = lineage(list);
+      const alvo = L.clientes.find(v => L.rootOf(v.id) === L.base?.id) || L.base;  // ultima do cliente sobre a base atual, senao a base
+      Object.assign(diag, { base: L.base?.id || null, latest: alvo && alvo !== L.base ? alvo.id : null, versoes: list.length });
+      if (!alvo) return;
+      const origem = lerOrigem();
+      const fpAtual = stable(window.pages);
+      const fpBoot = stable(KallineReview.normalize(structuredClone(INITIAL_PAGES)));
+      const rascunhoLocal = fpAtual !== fpBoot;
+      // rascunho local valido = feito sobre a base atual (origem conhecida) e ainda diferente do que foi salvo
+      const rascunhoDaBaseAtual = rascunhoLocal && origem && origem.base === L.base?.id;
+      if (rascunhoDaBaseAtual && cl.parentId !== alvo.id) {
+        showToast('Há alterações não salvas neste navegador. Clique em Salvar para guardá-las.');
+        return;
+      }
+      if (rascunhoLocal && !rascunhoDaBaseAtual) {
+        try { localStorage.setItem('kalline_masc_rascunho_antigo_' + window.KALLINE_STORAGE_SCOPE, JSON.stringify({ guardadoEm: new Date().toISOString(), origem, plan: window.pages })); } catch (e) {}
+        diag.autosaveDescartado = true;
+      }
+      if (cl.parentId === alvo.id && !rascunhoLocal) { gravarOrigem({ base: L.base?.id, versao: alvo.id }); return; }
+      const snap = await api('/api/catalog/versions/' + encodeURIComponent(alvo.id));
       await cl.applyPlan(structuredClone(snap.plan));
       cl.baseline = stable(window.pages); cl.parentId = snap.id; cl.rememberCurrent(); cl.changed(cl);
-      showToast('Aberta a última versão salva: ' + snap.name);
+      gravarOrigem({ base: L.base?.id, versao: snap.id });
+      showToast(diag.autosaveDescartado ? 'A base do catálogo foi atualizada: aberta "' + snap.name + '". Seu rascunho anterior ficou guardado neste navegador.' : 'Aberta: ' + snap.name);
     } catch (e) {
-      console.warn('[Kalline] última versão do cliente indisponível:', e.message);
-    } finally { window.__kallineStartupDone = true; }
+      console.warn('[Kalline] abertura da versão:', e.message);
+    } finally {
+      window.__kallineStartupDone = true;
+      // a cada gravacao/abertura, lembra sobre qual base o trabalho esta (para a proxima visita)
+      setInterval(async () => {
+        try { const cl = panel?.client; if (!cl?.parentId || lerOrigem()?.versao === cl.parentId) return;
+          const L = lineage((await api('/api/catalog/versions')).versions || []); gravarOrigem({ base: L.rootOf(cl.parentId), versao: cl.parentId }); } catch (e) {}
+      }, 3000);
+    }
   }
 
   let started = false;

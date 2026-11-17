@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
   <!-- Lucide Icons Library (Vector UI Local) -->
-  <script src="icons.js"></script>
+  <script src="icons.js?v=v03e"></script>
   <style>
     @font-face {
       font-family: 'Venti CF';
@@ -1672,8 +1672,8 @@
       padding-top: 14px;
     }
 </style>
-  <link rel="stylesheet" href="review/editor.css?v=07867eecc370">
-<meta name="referrer" content="no-referrer"><link rel="stylesheet" href="neon-login.css?v=73051c5acd49"></head>
+  <link rel="stylesheet" href="review/editor.css?v=v03e">
+<meta name="referrer" content="no-referrer"><link rel="stylesheet" href="neon-login.css?v=v03e"></head>
 <body>
 
 <div id="loginGate" class="login-gate" style="display:flex"><section class="login-card" aria-label="Entrar no catálogo"><h1>Kalline · Inverno 2027 Masculino</h1><p>Entre para revisar o catálogo e salvar versões.</p><form id="neonEmailForm" hidden><label for="neonEmail">E-mail autorizado</label><input id="neonEmail" type="email" autocomplete="email" required><button type="submit">Enviar código</button></form><form id="neonOtpForm" hidden><label for="neonOtp">Código recebido por e-mail</label><input id="neonOtp" inputmode="numeric" autocomplete="one-time-code" required><button type="submit">Entrar</button></form><button id="neonImportButton" type="button" hidden>Preparar prévias privadas</button><p id="neonLoginStatus" role="status">Conferindo sessão…</p></section></div>
@@ -1944,7 +1944,7 @@
   </div>
 
   <!-- APP SCRIPTS & DATA -->
-  <script src="review/model.js?v=v03a"></script>
+  <script src="review/model.js?v=v03e"></script>
   <script>
 
     // ==========================================
@@ -3523,7 +3523,7 @@ ${planJs}
     let sharedVersionsPanel = null;
     function initializeSharedVersions() {
       // The server controls shared-version identity. Local editor login/storage is never used as API authorization.
-      import('./versions/panel.mjs?v=v03b').then(({ mountVersionPanel }) => {
+      import('./versions/panel.mjs?v=v03e').then(({ mountVersionPanel }) => {
         if (sharedVersionsPanel) return;
         sharedVersionsPanel = mountVersionPanel({
           toolbar: document.querySelector('.header-actions'),
@@ -3560,9 +3560,9 @@ ${planJs}
     window.onload=()=>window.dispatchEvent(new Event('kalline-editor-ready'));
   </script>
   <!-- dados (looks, plano, conceito, fotos) chegam por GET /api/catalog/bootstrap -->
-  <script src="config.js?v=v03c"></script>
-  <script src="conceito-v03.js?v=v03d"></script>
-  <script src="review/editor.js?v=v03b"></script>
-  <script type="module" src="masculino-client.js?v=v03c"></script>
+  <script src="config.js?v=v03e"></script>
+  <script src="conceito-v03.js?v=v03e"></script>
+  <script src="review/editor.js?v=v03e"></script>
+  <script type="module" src="masculino-client.js?v=v03e"></script>
 </body>
 </html>
