@@ -48,7 +48,7 @@ export function mountVersionPanel({ toolbar, getPlan, applyPlan, confirmLoad }) 
     if(!client.versions.length)list.append(make('li','Nenhuma versão retornada. O plano local continua preservado.'));
     for(const v of client.versions){
       const item=make('li');item.className='version-card'+(v.id===client.parentId?' is-current':'');
-      const title=make('h3',v.name),type=make('p',v.readOnly?(v.name.startsWith('Última versão refinada pelo Markus')?'Base original refinada pelo Markus · preservada':'Ender v04 · lapidação preservada'):'Versão salva · snapshot preservado');
+      const title=make('h3',v.name),type=make('p',v.readOnly?(v.name.startsWith('Última versão refinada pelo Markus')?'Base original refinada pelo Markus · preservada':(v.oficial?'Oficial · Ender · somente leitura':'Base preservada · somente leitura')):'Versão salva · snapshot preservado');
       const author=make('p',(v.author?.name||'Autoria não informada')+' · '+(v.createdAt?new Date(v.createdAt).toLocaleString():'Data não informada'));
       const load=make('button',v.id===client.parentId&&!client.isDirty()?'Versão atual':'Abrir versão');load.type='button';load.disabled=v.id===client.parentId&&!client.isDirty();
       load.addEventListener('click',async()=>{load.disabled=true;try{if(await client.load(v.id)){status.textContent='Versão aberta.';dialog.close();returnFocus();}}catch(error){status.textContent=error.message;}finally{render();}});

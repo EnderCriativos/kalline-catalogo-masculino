@@ -1,194 +1,98 @@
 /**
- * Kalline Masculino Inverno 2027 - Cliente Editorial Local-First
- * Baseado no motor de produção aprovado (release 44902d6).
- * Integrado com o novo Roadmap (Fase 1 - MVP):
- * - Indexação e busca resiliente (módulo indice-produtos.mjs)
- * - Navegação bidirecional: clicar no badge de página leva direto à página com scroll suave e destaque
- * - Suporte a múltiplos desdobros (relação 1:N entre look e páginas)
- * - Identificação visual de status (peças pendentes de retoque fotográfico)
- * - Controle de versões imutáveis com botões rosa
+ * Kalline Masculino Inverno 2027 - cliente do estudio (mesmo motor do feminino).
+ * Fala com a API /api/catalog do motor homologado (app-base/neon-client.js):
+ *   GET /me · GET /bootstrap · POST /photo-urls · GET /versions · GET /versions/:id · POST /versions
+ * Versoes: SharedVersions (versions/client.mjs, identico ao do feminino), snapshots imutaveis com parentId.
+ * Acesso: Neon Auth com codigo por e-mail, igual ao feminino (neon-auth.js = cliente extraido do neon-client.js).
+ * Toda chamada /api/catalog leva "Authorization: Bearer <JWT da sessao>"; o papel (owner/editor) e o CSRF vem de /me.
+ * Nenhum segredo no codigo: config.js so tem enderecos publicos.
+ * Indexacao/busca: indice-produtos.mjs. Navegacao bidirecional pelas paginas.
  */
 
+import './neon-auth.js?v=v03c';
 import { indexarProdutos, buscarProdutos } from './indice-produtos.mjs';
 
 (function() {
   'use strict';
+  const cfg = Object.assign({ apiOrigin: '', catalogo: 'masculino-inv2027' }, window.KALLINE_CONFIG || {});
 
-  // Configuração global do catálogo masculino
-  LOOKS_DATA = window.KALLINE_MASCULINO_LOOKS || [];
-  PLANO_79_PAGINAS_REFINADO = window.KALLINE_MASCULINO_PAGES || [];
-  PLANO_107_PAGINAS_EXPANDIDO = window.KALLINE_MASCULINO_PAGES || [];
-  INITIAL_PAGES = window.KALLINE_MASCULINO_PAGES || [];
-  window.KALLINE_RAW_PHOTOS = window.KALLINE_MASCULINO_RAW_PHOTOS || { files: [], byLook: {} };
-  KALLINE_BRASAO_DATA = window.KALLINE_BRASAO_DATA || '';
-  KALLINE_BRASAO_HTML = KALLINE_BRASAO_DATA ? `<img class="kalline-brasao-img" src="${KALLINE_BRASAO_DATA}" alt="Kalline" />` : '';
+  // ---------- sessao Neon Auth (mesmo fluxo do feminino: O3 -> {auth, bearer}) ----------
+  const neon = window.KallineNeonAuth.create(cfg.authBaseUrl);
+  const bearer = () => neon.bearer();
 
-  TREATED_PHOTO_FILES = new Set(
-    LOOKS_DATA.flatMap(a => (a.entered || []).map(o => o.filename).concat(a.unused_tratadas || []))
-  );
-  KNOWN_RAW_PHOTO_FILES = new Set(
-    LOOKS_DATA.flatMap(a => a.unused_todas || []).concat(window.KALLINE_RAW_PHOTOS.files || [])
-  );
+  // ---------- fetch autenticado para /api/catalog (como o bj() do neon-client) ----------
+  const nativeFetch = globalThis.fetch.bind(globalThis);
+  async function catalogFetch(url, options = {}) {
+    const headers = new Headers(options.headers);
+    headers.set('Authorization', 'Bearer ' + await bearer());
+    headers.set('X-Kalline-Catalog', cfg.catalogo);
+    return nativeFetch(cfg.apiOrigin + url, { ...options, headers, credentials: 'omit', cache: 'no-store', redirect: 'error' });
+  }
+  globalThis.fetch = (url, options = {}) => typeof url === 'string' && url.startsWith('/api/catalog') ? catalogFetch(url, options) : nativeFetch(url, options);
+  async function api(url, options = {}) {
+    const r = await catalogFetch(url, options); let v = {};
+    try { v = await r.json(); } catch (e) {}
+    if (!r.ok) { const err = Error(v.error?.message || 'A operação não foi confirmada.'); err.code = v.error?.code; err.status = r.status; throw err; }
+    return v;
+  }
 
-  window.KALLINE_AUTH_USER_ID = 'ender_direcao';
-  window.KALLINE_STORAGE_SCOPE = 'masculino_inv2027';
-  NEON_PAGE_KEY = 'kalline_masculino_inverno_2027_v2';
-  const VERSIONS_STORAGE_KEY = 'kalline_masculino_versions_v2';
-
-  // Provedor de fotos e sessão local
+  // ---------- fotos: URLs assinadas devolvidas por POST /photo-urls ----------
+  let photoUrls = {};
   window.NeonPilot = {
-    showLogin: () => {},
-    signOut: () => {
-      if (confirm('Deseja reiniciar a sessão local? As versões salvas continuarão no navegador.')) {
-        location.reload();
-      }
-    },
-    photoUrl: (filename, isTratada = true) => {
-      if (!filename) return '';
-      return 'fotos/' + encodeURIComponent(filename);
-    }
+    showLogin: msg => loginGate(msg),
+    signOut: async () => { try { await neon.auth.signOut(); } catch (e) {} location.reload(); },
+    photoUrl: (filename, isTratada = true) => photoUrls[(isTratada ? 'treated/' : 'raw/') + filename] || photoUrls['raw/' + filename] || photoUrls['treated/' + filename] || '',
+    fallbackUrl: filename => photoUrls['raw/' + filename] || photoUrls['treated/' + filename] || '',
+    mediaUrl: key => photoUrls[key] || ''
   };
+  window.KallineSession = { role: 'cliente', user: null, api };
 
-  // Helper para gerar IDs imutáveis v_ + 32 hex
-  function generateVersionId() {
-    const bytes = new Uint8Array(16);
-    crypto.getRandomValues(bytes);
-    return 'v_' + Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('');
+  const status = msg => { const st = document.getElementById('neonLoginStatus'); if (st) st.textContent = msg; };
+  // tela de espera/erro (sem formulario)
+  function gate(msg) {
+    const g = document.getElementById('loginGate');
+    if (!g) return;
+    g.style.display = 'flex';
+    for (const id of ['neonEmailForm', 'neonOtpForm', 'neonImportButton']) { const el = document.getElementById(id); if (el) el.hidden = true; }
+    status(msg);
   }
-
-  // Base imutável inicial do masculino
-  const BASE_VERSION = {
-    id: 'base_masculino_v01',
-    name: 'Base Editorial Masculino Inverno 2027 (10 Duplas / 20 Peças)',
-    readOnly: true,
-    createdAt: '2026-11-12T00:00:00.000Z',
-    author: { name: 'Ender · Base Oficial Aprovada' },
-    plan: JSON.parse(JSON.stringify(INITIAL_PAGES))
-  };
-
-  function getLocalVersions() {
+  // tela de login: e-mail -> codigo (como o Rr() do feminino)
+  function loginGate(msg = 'Entre com seu e-mail autorizado.') {
+    gate(msg);
+    document.getElementById('neonEmailForm').hidden = false;
+    document.getElementById('neonOtpForm').hidden = true;
+  }
+  document.getElementById('neonEmailForm')?.addEventListener('submit', async e => {
+    e.preventDefault();
+    const email = document.getElementById('neonEmail').value.trim(), btn = e.submitter; if (btn) btn.disabled = true;
+    status('Enviando código…');
     try {
-      const stored = localStorage.getItem(VERSIONS_STORAGE_KEY);
-      if (stored) {
-        const list = JSON.parse(stored);
-        if (Array.isArray(list) && list.length > 0) return list;
-      }
-    } catch (e) {
-      console.warn('Erro ao ler versões locais:', e);
-    }
-    return [BASE_VERSION];
-  }
-
-  function saveLocalVersions(list) {
+      const r = await neon.auth.emailOtp.sendVerificationOtp({ email, type: 'sign-in' });
+      if (r.error) throw Error(r.error.message || 'Não foi possível enviar o código.');
+      document.getElementById('neonOtpForm').hidden = false;
+      status('Código enviado. Digite o código recebido no seu e-mail.');
+      document.getElementById('neonOtp').focus();
+    } catch (err) { status(err.message); } finally { if (btn) btn.disabled = false; }
+  });
+  document.getElementById('neonOtpForm')?.addEventListener('submit', async e => {
+    e.preventDefault();
+    const btn = e.submitter; if (btn) btn.disabled = true;
+    status('Conferindo código…');
     try {
-      localStorage.setItem(VERSIONS_STORAGE_KEY, JSON.stringify(list));
-    } catch (e) {
-      console.error('Erro ao gravar versões locais:', e);
-      throw new Error('Armazenamento local cheio. Salve um JSON pelo botão Salvar JSON.');
-    }
+      const r = await neon.auth.signIn.emailOtp({ email: document.getElementById('neonEmail').value.trim(), otp: document.getElementById('neonOtp').value.trim() });
+      if (r.error) throw Error(r.error.message || 'Código inválido ou expirado.');
+      document.getElementById('neonOtp').value = '';
+      started = false; await initMasculinoEditor();
+    } catch (err) { status(err.message); } finally { if (btn) btn.disabled = false; }
+  });
+
+  // escopo do autosave por usuario (+ ?qa= para testes), como o I3() do neon-client
+  function storageScope(userId) {
+    const qa = new URLSearchParams(location.search).get('qa');
+    if (qa === null) return { key: userId, testMode: false };
+    if (!/^[A-Za-z0-9_-]{4,48}$/.test(qa)) throw Error('Identificador de teste inválido. Abra o endereço normal do catálogo.');
+    return { key: userId + '_qa_' + qa, testMode: true };
   }
-
-  // Intercepta chamadas de rede para simular o backend idêntico ao Neon
-  const originalFetch = globalThis.fetch.bind(globalThis);
-  globalThis.fetch = async (url, options = {}) => {
-    if (typeof url === 'string' && url.startsWith('/api/catalog')) {
-      const path = url.replace('/api/catalog', '');
-      const method = (options.method || 'GET').toUpperCase();
-
-      // /me
-      if (path === '/me') {
-        return new Response(JSON.stringify({
-          ok: true,
-          user: { id: 'ender_direcao', name: 'Ender · Direção Criativa' },
-          csrf: 'local_csrf_token'
-        }), { status: 200, headers: { 'Content-Type': 'application/json' } });
-      }
-
-      // /versions
-      if (path === '/versions') {
-        if (method === 'GET') {
-          const list = getLocalVersions();
-          const versionsMeta = list.map(v => ({
-            id: v.id,
-            name: v.name,
-            readOnly: !!v.readOnly,
-            createdAt: v.createdAt,
-            author: v.author,
-            parentId: v.parentId || null
-          }));
-          return new Response(JSON.stringify({ ok: true, versions: versionsMeta }), {
-            status: 200, headers: { 'Content-Type': 'application/json' }
-          });
-        }
-
-        if (method === 'POST') {
-          const body = JSON.parse(options.body || '{}');
-          if (!body.name || !body.name.trim()) {
-            return new Response(JSON.stringify({ error: { code: 'INVALID_NAME', message: 'Dê um nome para a versão.' } }), {
-              status: 400, headers: { 'Content-Type': 'application/json' }
-            });
-          }
-          if (!Array.isArray(body.plan) || !body.plan.length) {
-            return new Response(JSON.stringify({ error: { code: 'INVALID_PLAN', message: 'O plano precisa conter páginas válidas.' } }), {
-              status: 400, headers: { 'Content-Type': 'application/json' }
-            });
-          }
-
-          const newId = generateVersionId();
-          const newVersion = {
-            id: newId,
-            name: body.name.trim(),
-            readOnly: false,
-            createdAt: new Date().toISOString(),
-            author: { name: 'Ender · Direção Criativa' },
-            parentId: body.parentId || null,
-            plan: body.plan
-          };
-
-          const list = getLocalVersions();
-          list.unshift(newVersion);
-          saveLocalVersions(list);
-
-          return new Response(JSON.stringify({
-            ok: true,
-            version: {
-              id: newVersion.id,
-              name: newVersion.name,
-              createdAt: newVersion.createdAt,
-              author: newVersion.author
-            }
-          }), { status: 200, headers: { 'Content-Type': 'application/json' } });
-        }
-      }
-
-      // /versions/:id
-      if (path.startsWith('/versions/')) {
-        const id = decodeURIComponent(path.replace('/versions/', ''));
-        const list = getLocalVersions();
-        const found = list.find(v => v.id === id);
-        if (!found) {
-          return new Response(JSON.stringify({ error: { code: 'NOT_FOUND', message: 'Versão não encontrada.' } }), {
-            status: 404, headers: { 'Content-Type': 'application/json' }
-          });
-        }
-        return new Response(JSON.stringify({
-          ok: true,
-          id: found.id,
-          name: found.name,
-          readOnly: !!found.readOnly,
-          createdAt: found.createdAt,
-          author: found.author,
-          plan: found.plan
-        }), { status: 200, headers: { 'Content-Type': 'application/json' } });
-      }
-
-      return new Response(JSON.stringify({ error: { message: 'Rota não implementada localmente' } }), {
-        status: 404, headers: { 'Content-Type': 'application/json' }
-      });
-    }
-
-    return originalFetch(url, options);
-  };
 
   // Navegação direta com rolagem suave e destaque visual
   window.navigateToPage = function(pageId) {
@@ -298,45 +202,112 @@ import { indexarProdutos, buscarProdutos } from './indice-produtos.mjs';
     });
   }
 
-  function initMasculinoEditor() {
-    const loginGate = document.getElementById('loginGate');
-    if (loginGate) loginGate.style.display = 'none';
+  // Ao abrir (sem edicao local pendente): abre a versao mais recente do CLIENTE (nao oficial), lida de GET /versions.
+  const stable = value => Array.isArray(value) ? '[' + value.map(stable).join(',') + ']'
+    : value && typeof value === 'object' ? '{' + Object.keys(value).sort().map(key => JSON.stringify(key) + ':' + stable(value[key])).join(',') + '}' : JSON.stringify(value);
+  async function latestClientVersionMeta() {
+    const list = (await api('/api/catalog/versions')).versions || [];
+    return list.filter(v => !v.readOnly && !v.oficial).sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)))[0] || null;
+  }
+  window.KallineSession.latestClientVersionMeta = latestClientVersionMeta;
+  async function openLatestClientVersion() {
+    let panel = null;
+    for (let i = 0; i < 100 && !panel; i++) {
+      try { panel = sharedVersionsPanel; } catch (e) {}
+      if (!panel) await new Promise(r => setTimeout(r, 100));
+    }
+    try {
+      if (!panel) return;
+      const cl = panel.client;
+      const latest = await latestClientVersionMeta();
+      window.__kallineStartup = { latest: latest ? latest.id : null };
+      if (!latest || cl.parentId === latest.id) return;
+      const base = stable(KallineReview.normalize(structuredClone(INITIAL_PAGES)));
+      const clean = (cl.baseline === null && stable(window.pages) === base) || (cl.baseline !== null && !cl.isDirty());
+      if (!clean) { showToast('Há alterações não salvas neste navegador. Clique em Salvar para guardá-las.'); return; }
+      const snap = await api('/api/catalog/versions/' + encodeURIComponent(latest.id));
+      await cl.applyPlan(structuredClone(snap.plan));
+      cl.baseline = stable(window.pages); cl.parentId = snap.id; cl.rememberCurrent(); cl.changed(cl);
+      showToast('Aberta a última versão salva: ' + snap.name);
+    } catch (e) {
+      console.warn('[Kalline] última versão do cliente indisponível:', e.message);
+    } finally { window.__kallineStartupDone = true; }
+  }
 
+  let started = false;
+  async function initMasculinoEditor() {
+    if (started) return; started = true;
+    gate('Conferindo sessão…');
+    try { await bearer(); } catch (e) { started = false; loginGate(); return; }
+    let me, boot;
+    try {
+      me = await api('/api/catalog/me');
+      boot = await api('/api/catalog/bootstrap');
+    } catch (e) {
+      started = false;
+      if (e.status === 401 || e.code === 'SIGN_IN_REQUIRED') loginGate('Sessão expirada. Entre novamente.');
+      else if (e.status === 403) loginGate('Este e-mail não tem acesso a este catálogo. Use o e-mail autorizado pela Ender.');
+      else gate('Não foi possível conectar ao servidor: ' + e.message);
+      return;
+    }
+    if (!boot.photosReady) { gate('Acesso confirmado. As prévias das fotos ainda estão sendo preparadas.'); return; }
+    // a API devolve as chaves completas (kalline-masculino/treated/x.jpg); o editor procura treated/, raw/, conceito/, assets/
+    const signed = (await api('/api/catalog/photo-urls', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': me.csrf }, body: JSON.stringify({ keys: boot.photoKeys }) })).urls || {};
+    photoUrls = Object.fromEntries(Object.entries(signed).map(([k, v]) => [k.replace(/^kalline-masculino\//, ''), v]));
+
+    // papel vem do servidor: owner (Ender) ou admin (mock) liberam os controles de exportacao
+    window.KallineSession.role = ['admin', 'owner'].includes(me.user.role || me.role) ? 'admin' : 'cliente';
+    window.KallineSession.user = me.user;
+    document.documentElement.classList.toggle('is-admin', window.KallineSession.role === 'admin');
+
+    // espelho do .indd (mapa) e fotos: os looks oferecem SO as tratadas daquela referencia; nada de foto bruta
+    // o storage da Function so repassa {photoKeys,looks,original,rawCatalog,brandData,conceito}: o espelho vem em conceito.espelho
+    window.KALLINE_ESPELHO_V03 = boot.espelho || boot.conceito?.espelho || null;
+    const tratadas = (window.KALLINE_ESPELHO_V03 && window.KALLINE_ESPELHO_V03.fotosLooks) || [];
+    LOOKS_DATA = (boot.looks || []).map(l => {
+      const entered = (l.entered || []).filter(e => tratadas.includes(e.filename));
+      const usados = new Set(entered.map(e => e.filename));
+      return { ...l, entered, unused_tratadas: tratadas.filter(f => f.startsWith(l.ref1 + '_') && !usados.has(f)), unused_todas: [] };
+    });
+    boot.rawCatalog = { files: [], byLook: {} };
+    PLANO_79_PAGINAS_REFINADO = boot.original;
+    PLANO_107_PAGINAS_EXPANDIDO = boot.original;
+    INITIAL_PAGES = boot.original; // 40 paginas V03
+    window.KALLINE_CONCEITO_V03 = boot.conceito;
+    window.KALLINE_RAW_PHOTOS = boot.rawCatalog || { files: [], byLook: {} };
+    KALLINE_BRASAO_DATA = boot.brandData || '';
+    KALLINE_BRASAO_HTML = KALLINE_BRASAO_DATA ? `<img class="kalline-brasao-img" src="${KALLINE_BRASAO_DATA}" alt="Kalline" />` : '';
+    TREATED_PHOTO_FILES = new Set(LOOKS_DATA.flatMap(a => (a.entered || []).map(o => o.filename).concat(a.unused_tratadas || [])));
+    KNOWN_RAW_PHOTO_FILES = new Set(LOOKS_DATA.flatMap(a => a.unused_todas || []).concat(window.KALLINE_RAW_PHOTOS.files || []));
+    const scope = storageScope(me.user.id);
+    window.KALLINE_AUTH_USER_ID = me.user.id;
+    window.KALLINE_STORAGE_SCOPE = cfg.catalogo + '_' + scope.key;
+    NEON_PAGE_KEY = 'kalline_neon_' + cfg.catalogo + '_' + scope.key;
+
+    document.getElementById('loginGate').style.display = 'none';
     const profileBadge = document.getElementById('userProfileBadge');
     if (profileBadge) {
       profileBadge.style.display = 'flex';
       const label = profileBadge.querySelector('span');
-      if (label) label.textContent = 'Ender · Direção Criativa';
+      if (label) label.textContent = me.user.name || (window.KallineSession.role === 'admin' ? 'Ender' : 'Cliente');
     }
 
-    // Garante que o brasão oficial atualizado esteja ativo no HTML
-    if (window.KALLINE_BRASAO_DATA) {
-      KALLINE_BRASAO_DATA = window.KALLINE_BRASAO_DATA;
-      KALLINE_BRASAO_HTML = `<img class="kalline-brasao-img" src="${KALLINE_BRASAO_DATA}" alt="Kalline" />`;
-    }
-
+    // metricas da Venti (linha de base exata dos textos do INDD): carrega as fontes antes do primeiro desenho
+    try { await Promise.all([500, 600, 700].map(w => document.fonts.load(w + ' 10px "Venti CF"'))); } catch (e) {}
     loadState();
     sanitizePieceNames(window.pages || []);
     setZoom(0.75);
     renderAllPages();
     window.renderSidebarLooks();
-
     const countEl = document.getElementById('totalLooksCount');
     if (countEl) countEl.textContent = LOOKS_DATA.length;
-
     initializeSharedVersions();
-
-    if (window.lucide && typeof window.lucide.createIcons === 'function') {
-      window.lucide.createIcons();
-    }
-
-    console.log('[Kalline Masculino 2027] Estúdio Editorial pronto (Roadmap Fase 1 integrado).');
+    openLatestClientVersion();
+    if (window.lucide && typeof window.lucide.createIcons === 'function') window.lucide.createIcons();
+    console.log('[Kalline Masculino 2027] Estúdio pronto (' + window.KallineSession.role + ').');
   }
 
-  window.addEventListener('kalline-editor-ready', () => {
-    initMasculinoEditor();
-  });
-
+  window.addEventListener('kalline-editor-ready', () => { initMasculinoEditor(); });
   if (document.readyState === 'complete' || document.readyState === 'interactive') {
     setTimeout(initMasculinoEditor, 50);
   }

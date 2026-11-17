@@ -22,7 +22,7 @@
           typeof c.resolved !== 'boolean' || !c.author || Object.keys(c.author).some(k => !['id','name','kind'].includes(k)) ||
           !text(c.author.id, 160) || !text(c.author.name, 160) || !['local','authenticated'].includes(c.author.kind) ||
           typeof c.createdAt !== 'string' || typeof c.updatedAt !== 'string' || c.createdAt.length>40 || c.updatedAt.length>40 || !Number.isFinite(Date.parse(c.createdAt)) || !Number.isFinite(Date.parse(c.updatedAt)) ||
-          !['look3','look3_right','2col','3col','quad4','estourada'].includes(c.layout)) throw Error('Marcação inválida.');
+          !['look3','look3_right','2col','3col','quad4','estourada','concept'].includes(c.layout)) throw Error('Marcação inválida.');
       notes.add(c.id);
     }
   }

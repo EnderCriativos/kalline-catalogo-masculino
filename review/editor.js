@@ -20,7 +20,7 @@ function openReviewDialog(pageId, title) {
     reviewDialog.addEventListener('cancel', () => { reviewMode = null; });
   }
   reviewDialog.replaceChildren(); reviewDialog.setAttribute('aria-label', title);
-  reviewElement('h2', title, reviewDialog); reviewElement('p', 'Página ' + (pages.findIndex(p => p.id === pageId) + 1) + ' · Look ' + reviewPage().lookNum, reviewDialog);
+  reviewElement('h2', title, reviewDialog); reviewElement('p', 'Página ' + (pages.findIndex(p => p.id === pageId) + 1) + ' · ' + (reviewPage().type === 'concept' ? 'Conceito · ' + reviewPage().layout : 'Look ' + reviewPage().lookNum), reviewDialog);
   return reviewDialog;
 }
 function commitPageReview(page, patch) {

@@ -20,6 +20,55 @@
       src: local('Venti CF Medium'), local('VentiCF-Medium');
       font-weight: 500;
     }
+    @font-face {
+      font-family: 'Venti CF';
+      src: local('Venti CF Demi Bold'), local('VentiCF-DemiBold');
+      font-weight: 600;
+    }
+
+    /* CONCEITO V03: paginas editoriais em coordenadas do InDesign (pt no corte A4) */
+    .lookbook-page.concept-page { padding: 0; display: block; overflow: hidden; }
+    .concept-page .cx-photo { position: absolute; overflow: hidden; cursor: pointer; background: #d9d9d4; }
+    .concept-page .cx-photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .concept-page .cx-empty { display: flex; align-items: center; justify-content: center; outline: 1px dashed #888; color: #555; font: 600 11px system-ui; }
+    .concept-page .cx-art { position: absolute; display: block; pointer-events: none; }
+    .concept-page .cx-text { position: absolute; font-family: var(--font-catalog); line-height: 1; white-space: nowrap; pointer-events: none; }
+    .concept-page .cx-rot { position: absolute; width: 0; height: 0; pointer-events: none; }
+    .concept-page .cx-rot-inner { position: absolute; left: 0; top: 0; transform: translate(-50%, -50%) rotate(-90deg); font-family: var(--font-catalog); line-height: 1; white-space: nowrap; }
+    .concept-page .cx-photo-actions { position: absolute; left: 0; right: 0; bottom: 0; display: none; gap: 4px; align-items: center; flex-wrap: wrap; padding: 6px; background: linear-gradient(transparent, rgba(0,0,0,.75)); }
+    .concept-page .cx-photo:hover .cx-photo-actions { display: flex; }
+    .concept-page .cx-photo-actions button { font: 600 10px system-ui; padding: 3px 7px; border-radius: 4px; border: 1px solid #fff; background: rgba(0,0,0,.4); color: #fff; cursor: pointer; }
+    .concept-page .cx-file { color: #fff; font: 10px system-ui; margin-right: auto; }
+    .canvas-clean-mode .cx-photo-actions, .canvas-clean-mode .cx-empty span { display: none !important; }
+    .cx-hint { font-size: 11px; color: var(--text-muted); margin-right: auto; align-self: center; }
+    .cx-picker { width: min(860px, calc(100% - 24px)) !important; }
+    .cx-picker-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 8px; margin: 12px 0; }
+    .cx-picker-grid button { display: flex !important; flex-direction: column; gap: 4px; padding: 4px !important; margin: 0 !important; background: #333 !important; color: #eee !important; font-size: 11px; }
+    .cx-picker-grid button.is-current { outline: 3px solid #e5b849; }
+    .cx-picker-grid img { width: 100%; aspect-ratio: 2/3; object-fit: cover; }
+    .cx-jsx-dialog select { display: block; width: 100%; padding: 9px; background: #111; color: #fff; border: 1px solid #777; border-radius: 4px; margin-top: 4px; }
+    .cx-page-nav { padding: 10px 12px; border-bottom: 1px solid var(--border-color); }
+    .cx-nav-title { font-size: 11px; font-weight: 600; color: var(--text-muted); margin-bottom: 6px; letter-spacing: .5px; text-transform: uppercase; }
+    .cx-nav-grid { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 4px; }
+    .cx-nav-grid button { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 2px; background: none; border: 1px solid transparent; border-radius: 3px; color: var(--text-muted); font-size: 9px; cursor: pointer; }
+    .cx-nav-grid button:hover, .cx-nav-grid button:focus-visible { border-color: var(--accent-gold); color: #fff; }
+    .cx-thumb { display: block; width: 100%; aspect-ratio: 595/842; overflow: hidden; }
+    .cx-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    html:not(.is-admin) .admin-only { display: none !important; }
+    /* ESPELHO V03: paginas de look e de conceito em coordenadas do InDesign */
+    .lookbook-page.exact-page { padding: 0; display: block; overflow: hidden; background: #fff; }
+    .exact-page .exact-slot { position: absolute; }
+    .exact-page .exact-slot > .photo-slot { width: 100%; height: 100%; }
+    .exact-page .exact-slot > .photo-slot img { width: 100%; height: 100%; object-fit: cover; }
+    .lookbook-page .cx-tf { position: absolute; pointer-events: none; }
+    .lookbook-page .cx-tf-inner { overflow: visible; } /* texto nunca e cortado; se nao couber, aparece o aviso da pagina */
+    .lookbook-page .cx-fill, .lookbook-page .cx-line { position: absolute; pointer-events: none; }
+    .lookbook-page .cx-art { position: absolute; display: block; pointer-events: none; }
+    .concept-page .cx-empty-label { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: #555; font: 600 11px system-ui; outline: 1px dashed #888; }
+    .canvas-clean-mode .cx-empty-label { display: none; }
+    .cx-print-warning { font: 600 12px system-ui; padding: 8px 12px; border-radius: 7px; background: #24392c; color: #b9e7c6; border: 1px solid #4f8a60; align-self: center; }
+    .cx-print-warning.is-bad { background: #4a2516; color: #ffd0b5; border-color: #c46a3c; }
+    .btn-client-export { background: #2d9d78 !important; border-color: #5fd1a9 !important; color: #fff !important; }
 
     :root {
       /* ADOBE INDESIGN DARK THEME PALETTE */
@@ -1627,7 +1676,7 @@
 <meta name="referrer" content="no-referrer"><link rel="stylesheet" href="neon-login.css?v=73051c5acd49"></head>
 <body>
 
-<div id="loginGate" class="login-gate" style="display:flex"><section class="login-card" aria-label="Entrar no catálogo"><h1>Kalline · Inverno 2027 Masculino</h1><p>Entre para revisar o catálogo e salvar versões.</p><form id="neonEmailForm"><label for="neonEmail">E-mail autorizado</label><input id="neonEmail" type="email" autocomplete="email" required><button type="submit">Enviar código</button></form><form id="neonOtpForm" hidden><label for="neonOtp">Código recebido por e-mail</label><input id="neonOtp" inputmode="numeric" autocomplete="one-time-code" required><button type="submit">Entrar</button></form><button id="neonImportButton" type="button" hidden>Preparar prévias privadas</button><p id="neonLoginStatus" role="status">Conferindo sessão…</p></section></div>
+<div id="loginGate" class="login-gate" style="display:flex"><section class="login-card" aria-label="Entrar no catálogo"><h1>Kalline · Inverno 2027 Masculino</h1><p>Entre para revisar o catálogo e salvar versões.</p><form id="neonEmailForm" hidden><label for="neonEmail">E-mail autorizado</label><input id="neonEmail" type="email" autocomplete="email" required><button type="submit">Enviar código</button></form><form id="neonOtpForm" hidden><label for="neonOtp">Código recebido por e-mail</label><input id="neonOtp" inputmode="numeric" autocomplete="one-time-code" required><button type="submit">Entrar</button></form><button id="neonImportButton" type="button" hidden>Preparar prévias privadas</button><p id="neonLoginStatus" role="status">Conferindo sessão…</p></section></div>
   <!-- TOP APP HEADER -->
   <header class="app-header">
     <div class="brand-section">
@@ -1692,20 +1741,32 @@
       <button class="btn btn-secondary" onclick="addNewPage()" title="Adicionar nova página ao final">
         <i data-lucide="plus"></i> Nova Página
       </button>
-      <button class="btn btn-jsx" onclick="openJsxExportModal()" title="Gerar e Exportar Script InDesign .jsx">
+      <button class="btn btn-jsx admin-only" onclick="openJsxExportModal()" title="Gerar e Exportar Script InDesign .jsx">
         <i data-lucide="zap"></i> Exportar InDesign (.jsx)
       </button>
-      <button class="btn btn-secondary" onclick="downloadJsonPlan()" title="Salvar e baixar arquivo JSON do catálogo para compartilhar com a equipe">
+      <button class="btn btn-secondary admin-only" onclick="downloadJsonPlan()" title="Salvar e baixar arquivo JSON do catálogo para compartilhar com a equipe">
         <i data-lucide="download"></i> Salvar JSON
       </button>
-      <button class="btn btn-secondary" onclick="document.getElementById('jsonFileInput').click()" title="Carregar plano salvo por outra pessoa (arquivo .json)">
+      <button class="btn btn-secondary admin-only" onclick="document.getElementById('jsonFileInput').click()" title="Carregar plano salvo por outra pessoa (arquivo .json)">
         <i data-lucide="upload"></i> Carregar JSON
       </button>
       <input type="file" id="jsonFileInput" accept=".json" onchange="handleJsonFileSelect(event)" style="display:none;" />
-      <button class="btn btn-secondary" onclick="exportJsonPlan()" title="Copiar plano JSON para área de transferência">
+      <button class="btn btn-secondary admin-only" onclick="exportJsonPlan()" title="Copiar plano JSON para área de transferência">
         <i data-lucide="copy"></i> Copiar JSON
       </button>
-      <button class="btn btn-secondary" onclick="resetToPilot()" title="Restaurar as 20 páginas do Mix Masculino">
+      <button class="btn btn-jsx btn-client-export admin-only" onclick="KallineConceito.openJsxDialog()" title="Baixar o script InDesign (.jsx) da versão escolhida (40 páginas)">
+        <i data-lucide="zap"></i> Exportar .jsx
+      </button>
+      <button class="btn btn-secondary btn-client-export admin-only" onclick="KallineConceito.exportCommentsJson()" title="Baixar só os comentários, para enviar à Ender">
+        <i data-lucide="message-square"></i> Exportar comentários (JSON)
+      </button>
+      <button class="btn btn-secondary btn-client-export admin-only" onclick="KallineConceito.exportVersionJson()" title="Baixar a versão completa (páginas, fotos, layouts, comentários, autor e data) para enviar à Ender">
+        <i data-lucide="download"></i> Exportar versão (JSON)
+      </button>
+      <button class="btn btn-secondary admin-only" onclick="KallineConceito.importVersionJson()" title="Importar uma versão recebida do cliente como nova versão, sem sobrescrever as existentes">
+        <i data-lucide="upload"></i> Importar versão (JSON)
+      </button>
+      <button class="btn btn-secondary" onclick="resetToPilot()" title="Restaurar a base V03 (40 páginas)">
         <i data-lucide="rotate-ccw"></i> Resetar
       </button>
     </div>
@@ -1883,7 +1944,7 @@
   </div>
 
   <!-- APP SCRIPTS & DATA -->
-  <script src="review/model.js?v=15c5b9c85c09"></script>
+  <script src="review/model.js?v=v03a"></script>
   <script>
 
     // ==========================================
@@ -1898,7 +1959,7 @@
 
 
     function getPhotoUrl(filename,isTratada=true){return window.NeonPilot.photoUrl(filename,isTratada);}
-    function getAbsoluteFallbackUrl(filename,isTratada=true){return getPhotoUrl(filename,isTratada);}
+    function getAbsoluteFallbackUrl(filename,isTratada=true){return window.NeonPilot.fallbackUrl?window.NeonPilot.fallbackUrl(filename):getPhotoUrl(filename,isTratada);}
     function handlePhotoLoadError(img, fallbackUrl) {
       // HTTP previews and their fallback can point to the same missing asset.
       // Try a distinct local fallback once, then retain the filename and plan.
@@ -2714,6 +2775,7 @@
 
     // RENDER A FULL LOOKBOOK PAGE CARD
     function renderPageCard(page, idx, isSpreadLeft = false, isSpreadRight = false) {
+      if (page.type === 'concept') return KallineConceito.renderConceptPageCard(page, idx, isSpreadLeft, isSpreadRight);
       const pageNum = idx + 1;
       const look = getLookBySeq(page.lookNum);
       const overflowCount = (page.gridOverflow || []).filter(slot => slot?.file).length;
@@ -2846,11 +2908,8 @@
           </div>
 
           <!-- Printable Lookbook Page -->
-          <div data-review-page="${page.id}" class="lookbook-page ${isSpreadLeft ? 'page-left' : ''} ${isSpreadRight ? 'page-right' : ''}">
-            <div class="page-photo-grid">
-              ${gridHtml}
-            </div>
-            ${renderPageFooter(page)}
+          <div data-review-page="${page.id}" class="lookbook-page exact-page ${isSpreadLeft ? 'page-left' : ''} ${isSpreadRight ? 'page-right' : ''}">
+            ${KallineConceito.renderLookExact(page)}
             ${renderReviewOverlay(page)}
           </div>
           <div class="review-overflow-warning" data-footer-warning="${page.id}" role="status" hidden></div>
@@ -2863,6 +2922,7 @@
       const scrollY = preserveScroll ? window.scrollY : 0;
       const container = document.getElementById('pagesCanvas');
       requestAnimationFrame(checkAllFooterOverflow);
+      requestAnimationFrame(() => { if (window.lucide) lucide.createIcons(); window.KallineConceito?.renderPageNav(); });
 
       if (viewMode === 'single') {
         let html = '';
@@ -3347,6 +3407,8 @@ ${planJs}
     }
 
     function openJsxExportModal() {
+      // V03: o exportador antigo (template do feminino) foi substituido pelo porte de montar_conceito.py.
+      return KallineConceito.openJsxDialog();
       document.getElementById('jsxExportModal').classList.add('open');try { updateJsxCodePreview(); } catch(error) { document.getElementById('jsxCodeView').innerText=error.message; }
       document.getElementById('jsxExportModal').classList.add('open');
     }
@@ -3402,6 +3464,12 @@ ${planJs}
       const ids = new Set();
       if (!Array.isArray(plan) || plan.length === 0 || plan.length > 500 || JSON.stringify(plan).length > 1000000) throw new Error('O plano precisa conter pelo menos uma página.');
       for (const page of plan) {
+        if (page && page.type === 'concept') {
+          if (typeof page.id !== 'string' || !/^[a-zA-Z0-9_-]+$/.test(page.id) || ids.has(page.id) || !KallineConceito.isValidConceptPage(page))
+            throw new Error('Página de conceito inválida: confira identificador, layout e fotos.');
+          ids.add(page.id);
+          continue;
+        }
         if (!page || typeof page.id !== 'string' || !/^[a-zA-Z0-9_-]+$/.test(page.id) || ids.has(page.id) ||
             !types.includes(page.type) || !LOOKS_DATA.some(look => look.seq === page.lookNum) ||
             !Array.isArray(page.pieces) || page.pieces.length === 0 ||
@@ -3455,7 +3523,7 @@ ${planJs}
     let sharedVersionsPanel = null;
     function initializeSharedVersions() {
       // The server controls shared-version identity. Local editor login/storage is never used as API authorization.
-      import('./versions/panel.mjs?v=8b69fc79745f').then(({ mountVersionPanel }) => {
+      import('./versions/panel.mjs?v=v03b').then(({ mountVersionPanel }) => {
         if (sharedVersionsPanel) return;
         sharedVersionsPanel = mountVersionPanel({
           toolbar: document.querySelector('.header-actions'),
@@ -3491,8 +3559,10 @@ ${planJs}
     // INITIALIZATION
     window.onload=()=>window.dispatchEvent(new Event('kalline-editor-ready'));
   </script>
-  <script src="masculino-data.js"></script>
-  <script src="review/editor.js"></script>
-  <script type="module" src="masculino-client.js"></script>
+  <!-- dados (looks, plano, conceito, fotos) chegam por GET /api/catalog/bootstrap -->
+  <script src="config.js?v=v03c"></script>
+  <script src="conceito-v03.js?v=v03d"></script>
+  <script src="review/editor.js?v=v03b"></script>
+  <script type="module" src="masculino-client.js?v=v03c"></script>
 </body>
 </html>
